@@ -16,6 +16,14 @@ public class Playercontroller : MonoBehaviour
     private int maxcoyote;
     public int coyote = 60;
 
+
+    //Dash stuff
+    public float dashDistance = 7f;
+    bool isDashing;
+    float doubleTapTime;
+    KeyCode lastKeycode;
+
+
     // Start is called before the first frame update
     void Start()
     {
@@ -23,7 +31,7 @@ public class Playercontroller : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         Application.targetFrameRate = 60;
 
-            }
+    }
 
     // Update is called once per frame
     void Update()
@@ -35,13 +43,13 @@ public class Playercontroller : MonoBehaviour
         {
             rb.AddForce(Vector2.up * jumpamount, ForceMode2D.Impulse);
             Debug.Log("jumped");
-           // supressGroundedTicksSec = 1;
+            // supressGroundedTicksSec = 1;
             coyote = 0;
-           
+
         }
         if (Input.GetKeyUp(KeyCode.Space) && rb.velocity.y > 0)
         {
-            rb.AddForce(new Vector2(0, -rb.velocity.y *( 2/3f)), ForceMode2D.Impulse);
+            rb.AddForce(new Vector2(0, -rb.velocity.y * (2 / 3f)), ForceMode2D.Impulse);
 
         }
         if (Input.GetKeyUp(KeyCode.Space))
@@ -51,6 +59,37 @@ public class Playercontroller : MonoBehaviour
         if (Input.GetKey(KeyCode.Space) && rb.velocity.y > 0 && grounded)
         {
             rb.AddForce(new Vector2(0, rb.velocity.y / 10), ForceMode2D.Force);
+        }
+
+
+
+        //Dash
+        //sol
+        if (Input.GetKeyDown(KeyCode.A)) {
+            if (doubleTapTime > Time.time && KeyCode.A == lastKeycode)
+            {
+                StartCoroutine(Dash(-1f));
+            }
+            else {
+                doubleTapTime = Time.time + 0.2f;
+            }
+
+            lastKeycode = KeyCode.A;
+        }
+
+        //sag
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            if (doubleTapTime > Time.time && KeyCode.D == lastKeycode)
+            {
+                StartCoroutine(Dash(1f));
+            }
+            else
+            {
+                doubleTapTime = Time.time + 0.2f;
+            }
+
+            lastKeycode = KeyCode.D;
         }
     }
     private void FixedUpdate()
@@ -95,7 +134,7 @@ public class Playercontroller : MonoBehaviour
     }
     void GetGrounded()
     {
-        supressGroundedTicks= (int)(((1 / Time.deltaTime)) * supressGroundedTicksSec);
+        supressGroundedTicks = (int)(((1 / Time.deltaTime)) * supressGroundedTicksSec);
         supressGroundedTicksSec = 0;
         LayerMask layerMask;
         layerMask = LayerMask.GetMask("Default");
@@ -124,5 +163,15 @@ public class Playercontroller : MonoBehaviour
             supressGroundedTicks--;
             grounded = false;
         }
+    }
+
+    IEnumerator Dash (float direction) {
+        isDashing = true;
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(new Vector2(dashDistance * direction, 0), ForceMode2D.Impulse);
+        rb.gravityScale = 0;
+        yield return new WaitForSeconds(0.2f);
+        isDashing = false;
+        rb.gravityScale = 3;
     }
 }
