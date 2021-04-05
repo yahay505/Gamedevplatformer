@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System;
-using System.Threading.Tasks;
 
 public class Playercontroller : MonoBehaviour
 {
@@ -19,7 +17,7 @@ public class Playercontroller : MonoBehaviour
 
     private bool doubleJumped;
 
-    public Transform firePoint,anchor;
+    public Transform firePoint;
     public GameObject Rock;
 
     public float knockback;
@@ -28,33 +26,12 @@ public class Playercontroller : MonoBehaviour
     public bool knockFromRight;
 
     private Rigidbody2D rb;
-    private bool suppressingJump=false;
-    public bool canJump
-    {
-        get { return suppressingJump?false: grounded ? true : !doubleJumped; }
-        set
-        {
-            if (value)
-            {
-                doubleJumped = false;
-            }
-            else
-            {
-                if (grounded)
-                {
-                    grounded = false;
-                }
-                else
-                {
-                    doubleJumped = false;
-                }
-            }
-        } }
+
+
 
     //Dash stuff
-    public float dashDistance = 700f;
+    public float dashDistance = 7f;
     bool isDashing;
-    bool facingRight = true;
     float doubleTapTime;
     KeyCode lastKeycode;
 
@@ -66,121 +43,92 @@ public class Playercontroller : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-    async Task SupressJump(int milisec)
-    {
-        suppressingJump = true;
-        await Task.Delay(milisec);
-        suppressingJump = false;
-    }
-    async Task SupressMove(int milisec)
-    {
-        suppressingMove = true;
-        await Task.Delay(milisec);
-        suppressingMove = false;
-    }
-    async Task Dash()
-    {
-        rb.AddForce(new Vector2(dashDistance, 0) * (facingRight ? 1 : -1),ForceMode2D.Impulse);
-
-        _= SupressMove(5);
-        await SupressJump(5);
-
-        rb.AddForce(new Vector2(rb.velocity.x, 0) * -1, ForceMode2D.Impulse);
-    }
-
-    [SerializeField] private float maxcoyotetime = 5f;
-    [SerializeField]private float currentcoyote = 5f;
-    private bool suppressingMove=false;
-
-    bool groundcheck()
-    {
-        return Physics2D.OverlapCircle(groundCheck.position, groundCheckradius, whatIsGround);
-    }
-
-    void Jump()
-    {
-        Task.Run(async () => { await Task.Delay(100);currentcoyote = 0; });
-        rb.AddForce(new Vector2(0, Mathf.Clamp(rb.velocity.y, float.NegativeInfinity,0)*-1+jumpHeight), ForceMode2D.Impulse);
-        rb.gravityScale = 3;
-    }
     void FixedUpdate()
     {
-        
-        if (groundcheck())
-        {
-            currentcoyote = maxcoyotetime;
-        }
-        else
-        {
-            currentcoyote -= Time.fixedDeltaTime;
-        }
-        grounded= currentcoyote > 0f;
-
-
-        if (suppressingMove)
-        {
-            return;
-        }
-
-        if (Input.GetKey(KeyCode.D))
-        {
-            rb.velocity = new Vector2(moveSpeed, rb.velocity.y);
-            moveVelocity = moveSpeed;
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            rb.velocity = new Vector2(-moveSpeed, rb.velocity.y);
-            moveVelocity = -moveSpeed;
-        }
+        grounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckradius, whatIsGround);
     }
+
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space) && canJump)
-        {
-            doubleJumped = !grounded;
-            Jump();
-            
 
-        }
-        if (Input.GetKeyUp(KeyCode.Space) && rb.velocity.y > 0)
+        if (grounded)
         {
-            rb.AddForce(new Vector2(0, -rb.velocity.y / 2), ForceMode2D.Impulse);
+            doubleJumped = false;
+        }
 
-        }
-        if (Input.GetKeyUp(KeyCode.Space))
+        if (GetComponent<Rigidbody2D>().velocity.x > 0)
+
+            transform.localScale = new Vector3(1f, 1f, 1f);
+        else if (GetComponent<Rigidbody2D>().velocity.x < 0)
+            transform.localScale = new Vector3(-1f, 1f, 1f);
+
+        moveVelocity = 0f;
+        if (Input.GetKeyDown(KeyCode.Space) && grounded)
         {
-            rb.gravityScale = 5;
+            GetComponent<Rigidbody2D>().velocity = new Vector2(GetComponent<Rigidbody2D>().velocity.x, jumpHeight);
         }
-        if (rb.velocity.x<0)
+
+        if (Input.GetKeyDown(KeyCode.Space) && !doubleJumped && !grounded)
         {
-            facingRight = false;
-            GetComponent<SpriteRenderer>().flipX = true;
-            anchor.localScale = new Vector3(-1, 1, 1);
+            GetComponent<Rigidbody2D>().velocity = new Vector2(GetComponent<Rigidbody2D>().velocity.x, jumpHeight);
+            doubleJumped = true;
         }
-        else if (moveVelocity > moveSpeed/5)
+        //moveVelocity = moveSpeed = Input.GetAxisRaw("Horizontal"); 
+
+
+        if (Input.GetKey(KeyCode.D))
         {
-            GetComponent<SpriteRenderer>().flipX = false;
-            facingRight = true;
-            anchor.localScale = new Vector3(1, 1, 1);
+            rb.velocity = new Vector2(moveSpeed, GetComponent<Rigidbody2D>().velocity.y);
+            moveVelocity = moveSpeed;
         }
-        if (Input.GetKeyDown(KeyCode.X))
+
+        if (Input.GetKey(KeyCode.A))
         {
-            StartCoroutine(Dash(1f));
-            //Task.Run(async()=> { try { await Dash(); } catch (Exception e) { Debug.LogError(e); } });
-            Debug.Log("Dash!");
+            rb.velocity = new Vector2(-moveSpeed, GetComponent<Rigidbody2D>().velocity.y);
+            moveVelocity = -moveSpeed;
+        }
+
+
+        //Dash
+        //sol
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            if (doubleTapTime > Time.time && KeyCode.A == lastKeycode)
+            {
+                StartCoroutine(Dash(-1f));
+            }
+            else
+            {
+                doubleTapTime = Time.time + 0.2f;
+            }
+
+            lastKeycode = KeyCode.A;
+        }
+
+        //sag
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            if (doubleTapTime > Time.time && KeyCode.D == lastKeycode)
+            {
+                StartCoroutine(Dash(1f));
+            }
+            else
+            {
+                doubleTapTime = Time.time + 0.2f;
+            }
+
+            lastKeycode = KeyCode.D;
         }
     }
 
-
-    IEnumerator Dash(float direction)
-    {
-
-        rb.AddForce(new Vector2(dashDistance, 0) * (facingRight ? 1 : -1), ForceMode2D.Impulse);
-
-        _ = SupressMove(50);
-        _ = SupressJump(50);
-        yield return new WaitForSeconds(0.5f);
-        rb.AddForce(new Vector2(rb.velocity.x, 0) * -1, ForceMode2D.Impulse);
+    IEnumerator Dash (float direction) {
+        isDashing = true;
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(new Vector2(dashDistance * direction, 0), ForceMode2D.Impulse);
+        rb.gravityScale = 0;
+        yield return new WaitForSeconds(0.2f);
+        isDashing = false;
+        rb.gravityScale = 3;
     }
 }
